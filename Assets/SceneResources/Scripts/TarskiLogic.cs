@@ -15,7 +15,7 @@ public class TarskiLogic : MonoBehaviour
     public List<GameObject> figures;
     public List<PredicateUIElement> uiPredicates;
 
-    [Header("Configuraci�n del Nivel")]
+    [Header("Configuraci�n del Nivel")]
     public DifficultyLevel currentLevel = DifficultyLevel.Facil;
 
     [Header("Distancias")]
@@ -38,10 +38,30 @@ public class TarskiLogic : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("TarskiLogic: Iniciando...");
+        
+        // Verificar que tenemos figuras asignadas
+        if (figures == null || figures.Count == 0)
+        {
+            Debug.LogError("TarskiLogic: No hay figuras asignadas!");
+            return;
+        }
+        
+        // Verificar que tenemos predicados UI asignados
+        if (uiPredicates == null || uiPredicates.Count == 0)
+        {
+            Debug.LogError("TarskiLogic: No hay predicados UI asignados!");
+            return;
+        }
+        
+        Debug.Log($"TarskiLogic: {figures.Count} figuras y {uiPredicates.Count} predicados UI encontrados");
+        
         InitializeAllPredicates();
         InitializeLevelPredicates();
         SetActivePredicatesForLevel(currentLevel);
         UpdateAllPredicatesUI();
+        
+        Debug.Log($"TarskiLogic: Inicialización completa para nivel {currentLevel}");
     }
 
     private void InitializeAllPredicates()
@@ -129,12 +149,15 @@ public class TarskiLogic : MonoBehaviour
 
     public void OnFigureMoved()
     {
+        Debug.Log("TarskiLogic: OnFigureMoved() llamado - Actualizando predicados...");
         UpdateAllPredicatesUI();
         CheckLevelCompletion();
     }
 
     private void UpdateAllPredicatesUI()
     {
+        Debug.Log($"TarskiLogic: Actualizando UI para {activePredicates.Count} predicados activos del nivel {currentLevel}");
+        
         foreach (var uiElement in uiPredicates)
         {
             if (activePredicates.Contains(uiElement.predicateName) &&
@@ -142,6 +165,7 @@ public class TarskiLogic : MonoBehaviour
             {
                 bool status = allPredicates[uiElement.predicateName].Invoke();
                 uiElement.SetStatus(status);
+                Debug.Log($"Predicado '{uiElement.predicateName}': {status}");
             }
         }
     }
@@ -162,7 +186,7 @@ public class TarskiLogic : MonoBehaviour
 
         if (completedPredicates == totalPredicates && totalPredicates > 0)
         {
-            Debug.Log($"�Nivel {currentLevel} completado! ({completedPredicates}/{totalPredicates} predicados cumplidos)");
+            Debug.Log($"�Nivel {currentLevel} completado! ({completedPredicates}/{totalPredicates} predicados cumplidos)");
             OnLevelCompleted?.Invoke();
         }
         else
@@ -317,5 +341,31 @@ public class TarskiLogic : MonoBehaviour
     public bool IsLevelCompleted()
     {
         return GetCompletionPercentage() >= 1.0f;
+    }
+    
+    // Método para debugging - llamar manualmente para forzar actualización
+    [ContextMenu("Force Update Predicates")]
+    public void ForceUpdatePredicates()
+    {
+        Debug.Log("=== FORZANDO ACTUALIZACIÓN DE PREDICADOS ===");
+        OnFigureMoved();
+    }
+    
+    // Método para verificar el estado actual de todas las figuras
+    [ContextMenu("Debug Figure Positions")]
+    public void DebugFigurePositions()
+    {
+        Debug.Log("=== POSICIONES DE FIGURAS ===");
+        for (int i = 0; i < figures.Count; i++)
+        {
+            if (figures[i] != null)
+            {
+                Debug.Log($"Figura {i} ({figures[i].name}): {figures[i].transform.position}");
+            }
+            else
+            {
+                Debug.LogError($"Figura {i} es null!");
+            }
+        }
     }
 }
