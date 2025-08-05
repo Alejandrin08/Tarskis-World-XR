@@ -15,7 +15,7 @@ public class TarskiLogic : MonoBehaviour
     public List<GameObject> figures;
     public List<PredicateUIElement> uiPredicates;
 
-    [Header("Configuraci�n del Nivel")]
+    [Header("Configuración del Nivel")]
     public DifficultyLevel currentLevel = DifficultyLevel.Facil;
 
     [Header("Distancias")]
@@ -29,19 +29,114 @@ public class TarskiLogic : MonoBehaviour
     public float sideThreshold = 0.3f;
     public float heightTolerance = 0.2f;
 
+    [Header("Debug")]
+    public bool enableDebugLogs = true;
+    public bool enableDetailedDebug = false;
+    public bool autoValidateSetup = true;
+
     [Header("Eventos")]
     public UnityEngine.Events.UnityEvent OnLevelCompleted;
 
     private Dictionary<string, System.Func<bool>> allPredicates;
     private Dictionary<DifficultyLevel, List<string>> levelPredicates;
     private List<string> activePredicates;
+    private int lastCompletedCount = -1;
 
     void Start()
     {
+        if (autoValidateSetup)
+        {
+            ValidateSetup();
+        }
+        
         InitializeAllPredicates();
         InitializeLevelPredicates();
         SetActivePredicatesForLevel(currentLevel);
         UpdateAllPredicatesUI();
+        
+        // Force an initial update
+        Invoke("DelayedInitialUpdate", 0.5f);
+    }
+    
+    void DelayedInitialUpdate()
+    {
+        if (enableDebugLogs)
+        {
+            Debug.Log("=== TARSKI LOGIC INITIAL VALIDATION ===");
+        }
+        OnFigureMoved();
+    }
+    
+    private void ValidateSetup()
+    {
+        List<string> errors = new List<string>();
+        List<string> warnings = new List<string>();
+        
+        // Validate figures
+        if (figures == null || figures.Count == 0)
+        {
+            errors.Add("No figures assigned!");
+        }
+        else
+        {
+            for (int i = 0; i < figures.Count; i++)
+            {
+                if (figures[i] == null)
+                {
+                    errors.Add($"Figure at index {i} is null!");
+                }
+                else
+                {
+                    // Check if figure has FigureTracker
+                    FigureTracker tracker = figures[i].GetComponent<FigureTracker>();
+                    if (tracker == null)
+                    {
+                        warnings.Add($"Figure '{figures[i].name}' doesn't have FigureTracker component!");
+                    }
+                    
+                    // Check if figure has Renderer for color detection
+                    Renderer renderer = figures[i].GetComponent<Renderer>();
+                    if (renderer == null)
+                    {
+                        warnings.Add($"Figure '{figures[i].name}' doesn't have Renderer component for color detection!");
+                    }
+                }
+            }
+        }
+        
+        // Validate UI predicates
+        if (uiPredicates == null || uiPredicates.Count == 0)
+        {
+            errors.Add("No UI predicates assigned!");
+        }
+        else
+        {
+            for (int i = 0; i < uiPredicates.Count; i++)
+            {
+                if (uiPredicates[i] == null)
+                {
+                    errors.Add($"UI Predicate at index {i} is null!");
+                }
+                else if (string.IsNullOrEmpty(uiPredicates[i].predicateName))
+                {
+                    warnings.Add($"UI Predicate '{uiPredicates[i].gameObject.name}' has empty predicate name!");
+                }
+            }
+        }
+        
+        // Log results
+        if (errors.Count > 0)
+        {
+            Debug.LogError("TarskiLogic Setup Errors:\n" + string.Join("\n", errors));
+        }
+        if (warnings.Count > 0)
+        {
+            Debug.LogWarning("TarskiLogic Setup Warnings:\n" + string.Join("\n", warnings));
+        }
+        if (errors.Count == 0 && warnings.Count == 0)
+        {
+            Debug.Log("TarskiLogic setup validation passed!");
+        }
     }
 
     private void InitializeAllPredicates()
@@ -118,10 +213,20 @@ public class TarskiLogic : MonoBehaviour
         currentLevel = level;
         activePredicates = levelPredicates[level];
 
+        if (enableDebugLogs)
+        {
+            Debug.Log($"Setting active predicates for level {level}: {string.Join(", ", activePredicates)}");
+        }
+
         foreach (var uiElement in uiPredicates)
         {
             bool shouldShow = activePredicates.Contains(uiElement.predicateName);
             uiElement.gameObject.SetActive(shouldShow);
+            
+            if (enableDetailedDebug)
+            {
+                Debug.Log($"UI Element '{uiElement.predicateName}' - Show: {shouldShow}");
+            }
         }
 
         UpdateAllPredicatesUI();
@@ -129,12 +234,19 @@ public class TarskiLogic : MonoBehaviour
 
     public void OnFigureMoved()
     {
+        if (enableDetailedDebug)
+        {
+            Debug.Log("=== FIGURE MOVED - UPDATING PREDICATES ===");
+        }
+        
         UpdateAllPredicatesUI();
         CheckLevelCompletion();
     }
 
     private void UpdateAllPredicatesUI()
     {
+        int updatedCount = 0;
+        
         foreach (var uiElement in uiPredicates)
         {
             if (activePredicates.Contains(uiElement.predicateName) &&
@@ -142,7 +254,18 @@ public class TarskiLogic : MonoBehaviour
             {
                 bool status = allPredicates[uiElement.predicateName].Invoke();
                 uiElement.SetStatus(status);
+                updatedCount++;
+                
+                if (enableDetailedDebug)
+                {
+                    Debug.Log($"Predicate '{uiElement.predicateName}': {status}");
+                }
             }
+        }
+        
+        if (enableDebugLogs && updatedCount > 0)
+        {
+            Debug.Log($"Updated {updatedCount} predicate UI elements");
         }
     }
 
@@ -160,37 +283,109 @@ public class TarskiLogic : MonoBehaviour
             }
         }
 
+        // Only log if completion count changed
+        if (completedPredicates != lastCompletedCount)
+        {
+            lastCompletedCount = completedPredicates;
+            
+            if (enableDebugLogs)
+            {
+                Debug.Log($"Progreso del Nivel {currentLevel}: {completedPredicates}/{totalPredicates} predicados cumplidos");
+                
+                if (enableDetailedDebug)
+                {
+                    // Show which predicates are completed
+                    foreach (var predicateName in activePredicates)
+                    {
+                        bool completed = allPredicates.ContainsKey(predicateName) && allPredicates[predicateName].Invoke();
+                        Debug.Log($"  - {predicateName}: {(completed ? "✓" : "✗")}");
+                    }
+                }
+            }
+        }
+
         if (completedPredicates == totalPredicates && totalPredicates > 0)
         {
-            Debug.Log($"�Nivel {currentLevel} completado! ({completedPredicates}/{totalPredicates} predicados cumplidos)");
+            Debug.Log($"¡NIVEL {currentLevel} COMPLETADO! ({completedPredicates}/{totalPredicates} predicados cumplidos)");
             OnLevelCompleted?.Invoke();
-        }
-        else
-        {
-            Debug.Log($"Progreso: {completedPredicates}/{totalPredicates} predicados cumplidos");
         }
     }
 
     private bool EstanCerca(int indexA, int indexB)
     {
+        if (!ValidateIndices(indexA, indexB)) return false;
+        
         float distance = Vector3.Distance(figures[indexA].transform.position, figures[indexB].transform.position);
-        return distance > minDistance && distance < closeDistance;
+        bool result = distance > minDistance && distance < closeDistance;
+        
+        if (enableDetailedDebug)
+        {
+            Debug.Log($"EstanCerca({indexA},{indexB}): distance={distance:F3}, result={result}");
+        }
+        
+        return result;
     }
 
     private bool EstanLejos(int indexA, int indexB)
     {
+        if (!ValidateIndices(indexA, indexB)) return false;
+        
         float distance = Vector3.Distance(figures[indexA].transform.position, figures[indexB].transform.position);
-        return distance > farDistance;
+        bool result = distance > farDistance;
+        
+        if (enableDetailedDebug)
+        {
+            Debug.Log($"EstanLejos({indexA},{indexB}): distance={distance:F3}, result={result}");
+        }
+        
+        return result;
     }
 
     private bool MismoColor(int indexA, int indexB)
     {
-        return figures[indexA].GetComponent<Renderer>().material.color ==
-               figures[indexB].GetComponent<Renderer>().material.color;
+        if (!ValidateIndices(indexA, indexB)) return false;
+        
+        Renderer rendererA = figures[indexA].GetComponent<Renderer>();
+        Renderer rendererB = figures[indexB].GetComponent<Renderer>();
+        
+        if (rendererA == null || rendererB == null)
+        {
+            if (enableDebugLogs)
+            {
+                Debug.LogWarning($"MismoColor({indexA},{indexB}): Missing Renderer component");
+            }
+            return false;
+        }
+        
+        bool result = rendererA.material.color == rendererB.material.color;
+        
+        if (enableDetailedDebug)
+        {
+            Debug.Log($"MismoColor({indexA},{indexB}): colorA={rendererA.material.color}, colorB={rendererB.material.color}, result={result}");
+        }
+        
+        return result;
+    }
+    
+    private bool ValidateIndices(params int[] indices)
+    {
+        foreach (int index in indices)
+        {
+            if (index < 0 || index >= figures.Count || figures[index] == null)
+            {
+                if (enableDebugLogs)
+                {
+                    Debug.LogError($"Invalid figure index: {index} (figures.Count: {figures.Count})");
+                }
+                return false;
+            }
+        }
+        return true;
     }
 
     private bool AlFrenteDe(int indexA, int indexB)
     {
+        if (!ValidateIndices(indexA, indexB)) return false;
         if (!EstanCerca(indexA, indexB)) return false;
         Vector3 dir = figures[indexB].transform.position - figures[indexA].transform.position;
         return Vector3.Dot(figures[indexA].transform.forward, dir.normalized) > frontThreshold;
@@ -198,6 +393,8 @@ public class TarskiLogic : MonoBehaviour
 
     private bool EstanAlLado(int indexA, int indexB)
     {
+        if (!ValidateIndices(indexA, indexB)) return false;
+        
         Vector3 posA = figures[indexA].transform.position;
         Vector3 posB = figures[indexB].transform.position;
 
@@ -212,6 +409,8 @@ public class TarskiLogic : MonoBehaviour
 
     private bool Entre(int indexA, int indexB, int indexC)
     {
+        if (!ValidateIndices(indexA, indexB, indexC)) return false;
+        
         Vector3 a = figures[indexA].transform.position;
         Vector3 b = figures[indexB].transform.position;
         Vector3 c = figures[indexC].transform.position;
@@ -229,6 +428,8 @@ public class TarskiLogic : MonoBehaviour
 
     private bool EstanAlineadas(int indexA, int indexB, int indexC)
     {
+        if (!ValidateIndices(indexA, indexB, indexC)) return false;
+        
         Vector3 a = figures[indexA].transform.position;
         Vector3 b = figures[indexB].transform.position;
         Vector3 c = figures[indexC].transform.position;
@@ -244,6 +445,8 @@ public class TarskiLogic : MonoBehaviour
 
     private bool FormanTriangulo(int indexA, int indexB, int indexC)
     {
+        if (!ValidateIndices(indexA, indexB, indexC)) return false;
+        
         float distAB = Vector3.Distance(figures[indexA].transform.position, figures[indexB].transform.position);
         float distBC = Vector3.Distance(figures[indexB].transform.position, figures[indexC].transform.position);
         float distCA = Vector3.Distance(figures[indexC].transform.position, figures[indexA].transform.position);
@@ -257,6 +460,8 @@ public class TarskiLogic : MonoBehaviour
 
     private bool EstaEnCentro(int indexCentro, int indexA, int indexB)
     {
+        if (!ValidateIndices(indexCentro, indexA, indexB)) return false;
+        
         Vector3 centro = figures[indexCentro].transform.position;
         Vector3 a = figures[indexA].transform.position;
         Vector3 b = figures[indexB].transform.position;
@@ -269,6 +474,8 @@ public class TarskiLogic : MonoBehaviour
 
     private bool EstanPerpendiculares(int indexA, int indexB, int indexC)
     {
+        if (!ValidateIndices(indexA, indexB, indexC)) return false;
+        
         Vector3 posA = figures[indexA].transform.position;
         Vector3 posB = figures[indexB].transform.position;
         Vector3 posC = figures[indexC].transform.position;
@@ -285,6 +492,7 @@ public class TarskiLogic : MonoBehaviour
 
     private bool AlineacionCompleja()
     {
+        if (figures.Count < 5) return false;
         return EstanAlineadas(0, 1, 4) && EstanAlineadas(1, 2, 3);
     }
 
@@ -317,5 +525,26 @@ public class TarskiLogic : MonoBehaviour
     public bool IsLevelCompleted()
     {
         return GetCompletionPercentage() >= 1.0f;
+    }
+    
+    // Manual debug method you can call from Unity Inspector or console
+    [ContextMenu("Debug Current State")]
+    public void DebugCurrentState()
+    {
+        Debug.Log("=== TARSKI LOGIC DEBUG STATE ===");
+        Debug.Log($"Current Level: {currentLevel}");
+        Debug.Log($"Figures Count: {figures.Count}");
+        Debug.Log($"Active Predicates: {string.Join(", ", activePredicates)}");
+        Debug.Log($"Completion: {GetCompletionPercentage():P0}");
+        
+        for (int i = 0; i < figures.Count && i < 3; i++)
+        {
+            if (figures[i] != null)
+            {
+                Debug.Log($"Figure {i} ({figures[i].name}): Position = {figures[i].transform.position}");
+            }
+        }
+        
+        OnFigureMoved(); // Force update
     }
 }
