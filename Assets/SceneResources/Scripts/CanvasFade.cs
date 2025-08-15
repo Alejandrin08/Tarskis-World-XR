@@ -20,7 +20,6 @@ public class CanvasFade : MonoBehaviour
             canvasGroup = GetComponent<CanvasGroup>();
             if (canvasGroup == null)
             {
-                Debug.LogError("No se encontró CanvasGroup en el GameObject.");
                 return;
             }
         }
