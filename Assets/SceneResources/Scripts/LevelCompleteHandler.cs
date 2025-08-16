@@ -15,6 +15,9 @@ public class LevelCompleteDisplay : MonoBehaviour
     [Header("Configuración")]
     public string menuSceneName = "Menu";
 
+    [Header("Interfaces")]
+    public GameObject menuInterface;
+
     public void OnLevelCompleted()
     {
         StartCoroutine(ShowCompletionMessage());
@@ -22,6 +25,10 @@ public class LevelCompleteDisplay : MonoBehaviour
 
     private IEnumerator ShowCompletionMessage()
     {
+        if (menuInterface != null)
+        {
+            menuInterface.SetActive(false);
+        }
         completionCanvas.gameObject.SetActive(true);
         completionCanvas.alpha = 0f;
 
