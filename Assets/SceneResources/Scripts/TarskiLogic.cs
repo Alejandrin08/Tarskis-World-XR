@@ -13,20 +13,20 @@ public class TarskiLogic : MonoBehaviour
 {
     [Header("Referencias")]
     public List<GameObject> figures = new List<GameObject>();
-    public List<PredicateUIElement> uiPredicates = new List<PredicateUIElement>();
+    public PredicateUIElement levelProgressUI; 
 
     [Header("Configuración del Nivel")]
     public DifficultyLevel currentLevel = DifficultyLevel.Facil;
 
     [Header("Distancias")]
-    public float minDistance = 0.05f;    
-    public float maxDistance = 1.0f;      
-    public float closeDistance = 0.30f;   
+    public float minDistance = 0.05f;
+    public float maxDistance = 1.0f;
+    public float closeDistance = 0.30f;
     public float farDistance = 0.5f;
 
     [Header("Posiciones")]
-    public float frontThreshold = 0.8f;     
-    public float sideThreshold = 0.5f;  
+    public float frontThreshold = 0.8f;
+    public float sideThreshold = 0.5f;
     public float heightTolerance = 0.1f;
 
     [Header("Eventos")]
@@ -34,6 +34,7 @@ public class TarskiLogic : MonoBehaviour
 
     private Dictionary<string, System.Func<bool>> allPredicates;
     private Dictionary<DifficultyLevel, List<string>> levelPredicates;
+    private Dictionary<DifficultyLevel, string> levelNames; 
     private List<string> activePredicates;
     private bool hasInitializationErrors = false;
 
@@ -49,8 +50,9 @@ public class TarskiLogic : MonoBehaviour
         {
             InitializeAllPredicates();
             InitializeLevelPredicates();
+            InitializeLevelNames(); 
             SetActivePredicatesForLevel(currentLevel);
-            UpdateAllPredicatesUI();
+            UpdateProgressUI(); 
         }
         catch (System.Exception ex)
         {
@@ -61,34 +63,34 @@ public class TarskiLogic : MonoBehaviour
     private void InitializeAllPredicates()
     {
         allPredicates = new Dictionary<string, System.Func<bool>>()
-    {
-        { "PiramideCubo1MismoColor", () => MismoColor(0, 1) },
-        { "Cubo1PrismaMismoColor", () => MismoColor(1, 2) },
-        { "PiramidePrismaMismoColor", () => MismoColor(0, 2) },
-        { "Cubo1Cubo2MismoColor", () => MismoColor(1, 3) },
-        { "PrismaCilindroMismoColor", () => MismoColor(2, 4) },
-        { "PiramideCubo2MismoColor", () => MismoColor(0, 3) },
+        {
+            { "PiramideCubo1MismoColor", () => MismoColor(0, 1) },
+            { "Cubo1PrismaMismoColor", () => MismoColor(1, 2) },
+            { "PiramidePrismaMismoColor", () => MismoColor(0, 2) },
+            { "Cubo1Cubo2MismoColor", () => MismoColor(1, 3) },
+            { "PrismaCilindroMismoColor", () => MismoColor(2, 4) },
+            { "PiramideCubo2MismoColor", () => MismoColor(0, 3) },
 
-        { "PiramideCubo1Cerca", () => EstanCerca(0, 1) },
-        { "Cubo1PrismaCerca", () => EstanCerca(1, 2) },
-        { "PiramidePrismaLejos", () => EstanLejos(0, 2) },
-        { "PiramideCilindroLejos", () => EstanLejos(0, 4) },
+            { "PiramideCubo1Cerca", () => EstanCerca(0, 1) },
+            { "Cubo1PrismaCerca", () => EstanCerca(1, 2) },
+            { "PiramidePrismaLejos", () => EstanLejos(0, 2) },
+            { "PiramideCilindroLejos", () => EstanLejos(0, 4) },
 
-        { "Cubo1AlFrentePiramide", () => AlFrenteDe(0, 1) },
-        { "PrismaAlFrenteCubo1", () => AlFrenteDe(1, 2) },
-        { "CilindroFrentePiramide", () => AlFrenteDe(0, 4) },
-        { "PiramideEntreCubos", () => Entre(0, 1, 3) },
-        { "Cubo1EntreOtros", () => Entre(1, 0, 2) },
+            { "Cubo1AlFrentePiramide", () => AlFrenteDe(0, 1) },
+            { "PrismaAlFrenteCubo1", () => AlFrenteDe(1, 2) },
+            { "CilindroFrentePiramide", () => AlFrenteDe(0, 4) },
+            { "PiramideEntreCubos", () => Entre(0, 1, 3) },
+            { "Cubo1EntreOtros", () => Entre(1, 0, 2) },
 
-        { "Cubo1AlLadoPiramide", () => EstanAlLado(0, 1) },
-        { "PrismaAlLadoCubo1", () => EstanAlLado(1, 2) },
-        { "TresFigurasAlineadas", () => EstanAlineadas(0, 1, 2) },
-        { "CincoFigurasAlineadas", () => AlineacionCompleja() },
+            { "Cubo1AlLadoPiramide", () => EstanAlLado(0, 1) },
+            { "PrismaAlLadoCubo1", () => EstanAlLado(1, 2) },
+            { "TresFigurasAlineadas", () => EstanAlineadas(0, 1, 2) },
+            { "CincoFigurasAlineadas", () => AlineacionCompleja() },
 
-        { "FormacionTriangular", () => FormanTriangulo(0, 1, 2) },
-        { "PiramideCentro", () => EstaEnCentro(0, 1, 2) },
-        { "FigurasFormandoCruz", () => EstanPerpendiculares(0, 3, 2) }
-    };
+            { "FormacionTriangular", () => FormanTriangulo(0, 1, 2) },
+            { "PiramideCentro", () => EstaEnCentro(0, 1, 2) },
+            { "FigurasFormandoCruz", () => EstanPerpendiculares(0, 3, 2) }
+        };
     }
 
     private void InitializeLevelPredicates()
@@ -127,6 +129,16 @@ public class TarskiLogic : MonoBehaviour
         };
     }
 
+    private void InitializeLevelNames()
+    {
+        levelNames = new Dictionary<DifficultyLevel, string>()
+        {
+            { DifficultyLevel.Facil, "Nivel Fácil" },
+            { DifficultyLevel.Medio, "Nivel Medio" },
+            { DifficultyLevel.Dificil, "Nivel Difícil" }
+        };
+    }
+
     private bool ValidateFigures()
     {
         bool allValid = true;
@@ -157,7 +169,7 @@ public class TarskiLogic : MonoBehaviour
 
         try
         {
-            UpdateAllPredicatesUI();
+            UpdateProgressUI(); 
             CheckLevelCompletion();
         }
         catch (System.Exception ex)
@@ -166,31 +178,58 @@ public class TarskiLogic : MonoBehaviour
         }
     }
 
-    private void UpdateAllPredicatesUI()
+    private void UpdateProgressUI()
     {
-        if (activePredicates == null)
+        if (activePredicates == null || levelProgressUI == null)
         {
             return;
         }
 
-        foreach (var uiElement in uiPredicates)
+        try
         {
-            if (uiElement == null) continue;
+            int completedCount = GetCompletedPredicatesCount();
+            int totalCount = activePredicates.Count;
+            float progress = totalCount > 0 ? (float)completedCount / totalCount : 0f;
 
-            if (activePredicates.Contains(uiElement.predicateName) &&
-                allPredicates.TryGetValue(uiElement.predicateName, out var predicate))
+            string levelName = levelNames.TryGetValue(currentLevel, out string name) ? name : currentLevel.ToString();
+
+            levelProgressUI.UpdateProgress(progress, completedCount, totalCount, levelName);
+
+        }
+        catch (System.Exception ex)
+        {
+            if (levelProgressUI != null)
+            {
+                levelProgressUI.SetStatus(false, true);
+            }
+        }
+    }
+
+    private int GetCompletedPredicatesCount()
+    {
+        if (activePredicates == null || activePredicates.Count == 0)
+            return 0;
+
+        int completedCount = 0;
+        foreach (var predicateName in activePredicates)
+        {
+            if (allPredicates.TryGetValue(predicateName, out var predicate))
             {
                 try
                 {
-                    bool status = predicate.Invoke();
-                    uiElement.SetStatus(status, true);
+                    if (predicate.Invoke())
+                    {
+                        completedCount++;
+                    }
                 }
                 catch (System.Exception ex)
                 {
-                    uiElement.SetStatus(false, true); 
+                    Debug.LogError($"Error evaluando predicado {predicateName}: {ex.Message}");
                 }
             }
         }
+
+        return completedCount;
     }
 
     private bool MismoColor(int indexA, int indexB)
@@ -232,7 +271,6 @@ public class TarskiLogic : MonoBehaviour
 
         return isClose;
     }
-
 
     private bool EstanLejos(int indexA, int indexB)
     {
@@ -402,7 +440,6 @@ public class TarskiLogic : MonoBehaviour
     private bool CheckFigureIndex(int index)
     {
         bool valid = index >= 0 && index < figures.Count && figures[index] != null;
-
         return valid;
     }
 
@@ -420,15 +457,15 @@ public class TarskiLogic : MonoBehaviour
         currentLevel = level;
         if (levelPredicates.TryGetValue(level, out activePredicates))
         {
-            foreach (var uiElement in uiPredicates)
+            if (levelProgressUI != null)
             {
-                if (uiElement == null) continue;
+                levelProgressUI.gameObject.SetActive(true);
+                levelProgressUI.ResetProgress();
 
-                bool shouldShow = activePredicates.Contains(uiElement.predicateName);
-                uiElement.gameObject.SetActive(shouldShow);
-                uiElement.SetStatus(false, shouldShow);
+                levelProgressUI.levelIdentifier = $"Level_{level}";
             }
-            UpdateAllPredicatesUI();
+
+            UpdateProgressUI();
         }
     }
 
@@ -438,17 +475,15 @@ public class TarskiLogic : MonoBehaviour
 
         try
         {
-            int completedPredicates = 0;
-            foreach (var predicateName in activePredicates)
-            {
-                if (allPredicates.TryGetValue(predicateName, out var predicate) && predicate.Invoke())
-                {
-                    completedPredicates++;
-                }
-            }
+            int completedPredicates = GetCompletedPredicatesCount();
 
             if (completedPredicates == activePredicates.Count && activePredicates.Count > 0)
             {
+                if (levelProgressUI != null)
+                {
+                    levelProgressUI.SetLevelCompleted();
+                }
+
                 OnLevelCompleted?.Invoke();
             }
         }
@@ -472,15 +507,7 @@ public class TarskiLogic : MonoBehaviour
 
         try
         {
-            int completed = 0;
-            foreach (var predicateName in activePredicates)
-            {
-                if (allPredicates.TryGetValue(predicateName, out var predicate) && predicate.Invoke())
-                {
-                    completed++;
-                }
-            }
-
+            int completed = GetCompletedPredicatesCount();
             return (float)completed / activePredicates.Count;
         }
         catch (System.Exception ex)
@@ -492,5 +519,20 @@ public class TarskiLogic : MonoBehaviour
     public bool IsLevelCompleted()
     {
         return GetCompletionPercentage() >= 1.0f;
+    }
+
+    public int GetCurrentLevelTotalPredicates()
+    {
+        return activePredicates?.Count ?? 0;
+    }
+
+    public int GetCurrentLevelCompletedPredicates()
+    {
+        return GetCompletedPredicatesCount();
+    }
+
+    public string GetCurrentLevelName()
+    {
+        return levelNames.TryGetValue(currentLevel, out string name) ? name : currentLevel.ToString();
     }
 }

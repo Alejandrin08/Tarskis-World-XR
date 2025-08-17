@@ -32,6 +32,7 @@ public class LevelCompleteDisplay : MonoBehaviour
         completionCanvas.gameObject.SetActive(true);
         completionCanvas.alpha = 0f;
 
+        yield return new WaitForSeconds(3f);
         yield return StartCoroutine(FadeCanvas(completionCanvas, 0f, 1f, fadeInDuration));
         yield return new WaitForSeconds(displayDuration);
         yield return StartCoroutine(FadeCanvas(completionCanvas, 1f, 0f, fadeOutDuration));

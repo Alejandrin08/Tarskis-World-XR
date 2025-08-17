@@ -7,6 +7,13 @@ public class ManageScene : MonoBehaviour
 {
     public void LoadLevel(string levelName)
     {
-        UnityEngine.SceneManagement.SceneManager.LoadScene(levelName);
+        StartCoroutine(LoadLevelWithDelay(levelName));
+    }
+
+    private IEnumerator LoadLevelWithDelay(string levelName)
+    {
+        yield return new WaitForSeconds(5f);
+
+        SceneManager.LoadScene(levelName);
     }
 }
